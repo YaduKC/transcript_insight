@@ -5,6 +5,7 @@ import re
 
 
 openai.api_key = st.secrets["OPENAI_KEY"]
+nltk.download('stopwords')
 
 def summary(chunk):
     start_sequence = "A single line topic of the conversation:"
