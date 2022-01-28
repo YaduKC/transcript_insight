@@ -12,7 +12,7 @@ if 'submit_' not in st.session_state:
 
 
 def summary(chunk):
-    start_sequence = "A single line topic of the conversation:"
+    start_sequence = "The main topic of conversation in 6 words is:"
     response = openai.Completion.create(
         engine="text-davinci-001",
         prompt="\""+chunk+"\"" +"\n"+start_sequence,
@@ -24,7 +24,6 @@ def summary(chunk):
     )
     insight = response.choices[0].get("text")
     return insight
-    return "test"
 
         
 
@@ -45,17 +44,10 @@ def texttiles(text):
                 with st.expander(label = "Transcript (Segment " + str(count+1) + ")"):
                     st.caption(chunk)
 
-            analyst = ["temp"]
-            expert = ["temp"]
-            ts = ["temp"]
-            openai_count = 0
-            while analyst or expert or ts or openai_count > 20:
-                insight = summary(chunk)
-                analyst = re.findall(r"analyst:", insight, flags=re.IGNORECASE)
-                expert = re.findall(r"expert:", insight, flags=re.IGNORECASE)
-                ts = re.findall(r"\[\d\d\:\d\d:\d\d\]", insight)
-                openai_count += 1
-            print(openai_count)
+            #chunk = re.sub(r"analyst:", "", chunk, flags=re.IGNORECASE)
+            #chunk = re.sub(r"expert:", "", chunk, flags=re.IGNORECASE)
+            chunk = re.sub(r"\[\d\d\:\d\d:\d\d\]", "", chunk, flags=re.IGNORECASE)
+            insight = summary(chunk)
             cols[1].caption(insight)
             cols[2].caption(timestamps[0] + "-" + timestamps[-1])
     st.markdown("""---""")
