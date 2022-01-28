@@ -7,6 +7,10 @@ import re
 openai.api_key = st.secrets["OPENAI_KEY"]
 nltk.download('stopwords')
 
+if 'submit_' not in st.session_state:
+    st.session_state.submit_ = False
+
+
 def summary(chunk):
     start_sequence = "A single line topic of the conversation:"
     response = openai.Completion.create(
@@ -20,6 +24,7 @@ def summary(chunk):
     )
     insight = response.choices[0].get("text")
     return insight
+    return "test"
 
         
 
@@ -44,14 +49,64 @@ def texttiles(text):
             expert = ["temp"]
             ts = ["temp"]
             openai_count = 0
-            while analyst or expert or ts:
+            while analyst or expert or ts or openai_count > 20:
                 insight = summary(chunk)
                 analyst = re.findall(r"analyst:", insight, flags=re.IGNORECASE)
                 expert = re.findall(r"expert:", insight, flags=re.IGNORECASE)
                 ts = re.findall(r"\[\d\d\:\d\d:\d\d\]", insight)
                 openai_count += 1
+            print(openai_count)
             cols[1].caption(insight)
             cols[2].caption(timestamps[0] + "-" + timestamps[-1])
+    st.markdown("""---""")
+
+def technicals(transcript):
+    st.header("Developer")
+    tt = nltk.tokenize.TextTilingTokenizer(w=80,k=5, demo_mode=True)
+    s, ss, d, b = tt.tokenize(transcript)
+
+    cols = st.columns([1,1,1,1])
+
+    cols[0].subheader("Gap Scores")
+    cols[0].area_chart(s)
+
+    cols[1].subheader("Smoothed Gap scores")
+    cols[1].area_chart(ss)
+
+    cols[2].subheader("Depth scores")
+    cols[2].area_chart(d)
+
+    cols[3].subheader("Cutoff Region")
+    cols[3].area_chart(b)
+
+    parameters = {
+                "w":80,
+                "k":5,
+                "similarity_method":"BLOCK_COMPARISON",
+                "stopwords":"NLTK",
+                "smoothing_method": "DEFAULT_SMOOTHING",
+                "smoothing_width": 2,
+                "smoothing_rounds": 1,
+                "cutoff_policy": "HC",
+                "demo_mode": False
+                }
+
+    with cols[0].container():
+        st.subheader("Current Parameters")
+        st.write(parameters)
+
+    with cols[1].container():
+        st.subheader("Parameters")
+        '''
+        - w (int): Pseudosentence size
+        - k (int): Size (in sentences) of the block used in the block comparison method
+        - similarity_method (constant): The method used for determining similarity scores: BLOCK_COMPARISON (default) or VOCABULARY_INTRODUCTION.
+        - stopwords (list(str)): A list of stopwords that are filtered out (defaults to NLTK’s stopwords corpus)
+        - smoothing_method (constant): The method used for smoothing the score plot: DEFAULT_SMOOTHING (default)
+        - smoothing_width (int): The width of the window used by the smoothing method
+        - smoothing_rounds (int): The number of smoothing passes
+        - cutoff_policy (constant): The policy used to determine the number of boundaries: HC (default) or LC
+        '''
     st.markdown("""---""")
 
 if __name__ == "__main__":
@@ -62,5 +117,8 @@ if __name__ == "__main__":
         st.header("Input Transcript")
         transcript = st.text_area(label="",height=800)
         if st.button(label="Submit"):
+            st.session_state.submit_ = True
+        if st.session_state.submit_:
             st.markdown("""---""")
             texttiles(transcript)
+            technicals(transcript)
