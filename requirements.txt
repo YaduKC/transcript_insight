@@ -20,7 +20,6 @@ colorama==0.4.4
 contextvars==2.4
 cycler==0.11.0
 cymem==2.0.6
-dataclasses==0.8
 decorator==4.4.2
 defusedxml==0.7.1
 entrypoints==0.3
