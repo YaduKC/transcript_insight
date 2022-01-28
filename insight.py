@@ -4,7 +4,7 @@ import nltk
 import re
 
 
-openai.api_key = "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"
+openai.api_key = st.secrets["OPENAI_KEY"]
 
 def summary(chunk):
     start_sequence = "A single line topic of the conversation:"
