@@ -28,7 +28,7 @@ def summary(chunk):
         
 
 def texttiles(text):
-    tt = nltk.tokenize.TextTilingTokenizer(w=80,k=5)
+    tt = nltk.tokenize.TextTilingTokenizer(w=80,k=5,smoothing_width=3)
     tiles = tt.tokenize(text)
     with st.container():
         cols = st.columns([2,1,1])
@@ -113,4 +113,4 @@ if __name__ == "__main__":
         if st.session_state.submit_:
             st.markdown("""---""")
             texttiles(transcript)
-            technicals(transcript)
+            #technicals(transcript)
