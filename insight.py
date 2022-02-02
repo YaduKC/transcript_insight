@@ -127,16 +127,19 @@ def search():
     search_term = st.text_input(label="Enter Search Term")
     if st.button(label="Submit", key = 0):
         curr_files = list_curr_files()
-        output = openai.Engine("ada").search(
-                                    search_model="ada", 
-                                    query=search_term, 
-                                    max_rerank=200,
-                                    file=curr_files[0]
-                                    )
-        st.markdown("""---""")
-        st.title("Results")
-        for data in output["data"]:
-            st.caption(data["text"])
+        try:
+            output = openai.Engine("ada").search(
+                                        search_model="ada", 
+                                        query=search_term, 
+                                        max_rerank=200,
+                                        file=curr_files[0]
+                                        )
+            st.markdown("""---""")
+            st.title("Results")
+            for data in output["data"]:
+                st.caption(data["text"])
+        except:
+            st.error("No similar documents were found in file, try another search term...")
     return None
 
 def qna():
