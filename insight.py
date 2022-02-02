@@ -27,19 +27,21 @@ if 'data_prep_' not in st.session_state:
 if 'upload_' not in st.session_state:
     st.session_state.upload_ = False
 
-def summary(chunk):
-    start_sequence = "The main topic of conversation in 6 words is:"
-    response = openai.Completion.create(
-        engine="text-davinci-001",
-        prompt="\""+chunk+"\"" +"\n"+start_sequence,
-        temperature=0.7,
-        max_tokens=64,
-        top_p=1,
-        frequency_penalty=0,
-        presence_penalty=0
-    )
-    insight = response.choices[0].get("text")
-    return insight
+def local_css():
+    with open("style.css") as f:
+        st.markdown('<style>{}</style>'.format(f.read()), unsafe_allow_html=True)
+
+def display_search(search_term, result):
+    local_css()
+    s = result.split(search_term)
+    html_str = "<div>"
+    for count,i in enumerate(s):
+        if count < len(s) - 1:
+            html_str += i + "<span class='highlight blue'>"+search_term+ "</span>"
+        else:
+            html_str += i
+    html_str = html_str+"</div>"
+    st.markdown(html_str, unsafe_allow_html=True)
 
 def display_insight(data):
     with st.container():
@@ -137,7 +139,8 @@ def search():
             st.markdown("""---""")
             st.title("Results")
             for data in output["data"]:
-                st.caption(data["text"])
+                display_search(search_term, data["text"])
+                #st.caption(data["text"])
         except:
             st.error("No similar documents were found in file, try another search term...")
     return None
