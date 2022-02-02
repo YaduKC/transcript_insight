@@ -1,4 +1,3 @@
-from cProfile import label
 from time import sleep
 import openai
 import streamlit as st
@@ -29,19 +28,18 @@ if 'upload_' not in st.session_state:
     st.session_state.upload_ = False
 
 def summary(chunk):
-    # start_sequence = "The main topic of conversation in 6 words is:"
-    # response = openai.Completion.create(
-    #     engine="text-davinci-001",
-    #     prompt="\""+chunk+"\"" +"\n"+start_sequence,
-    #     temperature=0.7,
-    #     max_tokens=64,
-    #     top_p=1,
-    #     frequency_penalty=0,
-    #     presence_penalty=0
-    # )
-    # insight = response.choices[0].get("text")
-    # return insight
-    return "Test"
+    start_sequence = "The main topic of conversation in 6 words is:"
+    response = openai.Completion.create(
+        engine="text-davinci-001",
+        prompt="\""+chunk+"\"" +"\n"+start_sequence,
+        temperature=0.7,
+        max_tokens=64,
+        top_p=1,
+        frequency_penalty=0,
+        presence_penalty=0
+    )
+    insight = response.choices[0].get("text")
+    return insight
 
 def display_insight(data):
     with st.container():
