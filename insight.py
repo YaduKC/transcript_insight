@@ -39,20 +39,19 @@ if 'es_' not in st.session_state:
                     scheme="https", port=9243,)
 
 def summary(chunk):
-    # start_sequence = "The main topic of conversation in 6 words is:"
-    # response = openai.Completion.create(
-    #     engine="text-davinci-001",
-    #     prompt="\""+chunk+"\"" +"\n"+start_sequence,
-    #     temperature=0.7,
-    #     max_tokens=64,
-    #     top_p=1,
-    #     frequency_penalty=0,
-    #     presence_penalty=0
-    # )
-    # insight = response.choices[0].get("text")
-    # insight = insight.replace("\"", "")
-    # return insight
-    return "Test"
+    start_sequence = "The main topic of conversation in 6 words is:"
+    response = openai.Completion.create(
+        engine="text-davinci-001",
+        prompt="\""+chunk+"\"" +"\n"+start_sequence,
+        temperature=0.7,
+        max_tokens=64,
+        top_p=1,
+        frequency_penalty=0,
+        presence_penalty=0
+    )
+    insight = response.choices[0].get("text")
+    insight = insight.replace("\"", "")
+    return insight
 
 def local_css():
     with open("style.css") as f:
