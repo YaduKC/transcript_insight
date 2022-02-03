@@ -1,4 +1,5 @@
 from time import sleep
+from elasticsearch import Elasticsearch
 import openai
 import streamlit as st
 import nltk
@@ -7,6 +8,7 @@ import requests
 import os.path
 
 openai.api_key = st.secrets["OPENAI_KEY"]
+elasticsearch_key = st.secrets["ELASTICSEARCH_KEY"]
 nltk.download('stopwords')
 
 if 'submit_' not in st.session_state:
@@ -27,28 +29,38 @@ if 'data_prep_' not in st.session_state:
 if 'upload_' not in st.session_state:
     st.session_state.upload_ = False
 
+if 'elasticsearch_data_' not in st.session_state:
+    st.session_state.elasticsearch_data_ = []
+
+if 'es_' not in st.session_state:
+    st.session_state.es_ = Elasticsearch(
+                    ['https://insight-08476f.es.us-east4.gcp.elastic-cloud.com'],
+                    http_auth=('elastic', elasticsearch_key),
+                    scheme="https", port=9243,)
+
 def summary(chunk):
-    start_sequence = "The main topic of conversation in 6 words is:"
-    response = openai.Completion.create(
-        engine="text-davinci-001",
-        prompt="\""+chunk+"\"" +"\n"+start_sequence,
-        temperature=0.7,
-        max_tokens=64,
-        top_p=1,
-        frequency_penalty=0,
-        presence_penalty=0
-    )
-    insight = response.choices[0].get("text")
-    return insight
+    # start_sequence = "The main topic of conversation in 6 words is:"
+    # response = openai.Completion.create(
+    #     engine="text-davinci-001",
+    #     prompt="\""+chunk+"\"" +"\n"+start_sequence,
+    #     temperature=0.7,
+    #     max_tokens=64,
+    #     top_p=1,
+    #     frequency_penalty=0,
+    #     presence_penalty=0
+    # )
+    # insight = response.choices[0].get("text")
+    # insight = insight.replace("\"", "")
+    # return insight
     return "Test"
 
 def local_css():
     with open("style.css") as f:
         st.markdown('<style>{}</style>'.format(f.read()), unsafe_allow_html=True)
 
-def display_search(search_term, result):
+def display_search(search_term, result, index):
     local_css()
-    s = result.split(search_term)
+    s = re.split(search_term.lower(), result.lower())
     html_str = "<div>"
     for count,i in enumerate(s):
         if count < len(s) - 1:
@@ -56,7 +68,12 @@ def display_search(search_term, result):
         else:
             html_str += i
     html_str = html_str+"</div>"
-    st.markdown(html_str, unsafe_allow_html=True)
+    with st.container():
+        cols = st.columns([0.3,10])
+        cols[0].write(str(index+1)+" :")
+        cols[1].markdown(html_str, unsafe_allow_html=True)
+
+    
 
 def display_insight(data):
     with st.container():
@@ -101,6 +118,7 @@ def insight_generate(transcript):
 
 def jsonl_converter(transcript):
     with st.spinner("Parsing Transcript..."):
+        elasticsearch_data = []
         if os.path.isfile("data.jsonl"):
             os.remove("data.jsonl")
         transcript_list = transcript.split("\n")
@@ -110,8 +128,11 @@ def jsonl_converter(transcript):
                 i = i.strip()
                 i = i.replace("\"", "")
                 i = "{\"text\":" +  " \"" + i + "\"}"
+                elasticsearch_data.append(i)
                 file.write(i + "\n")
         file.close()
+        if not st.session_state.elasticsearch_data_:
+            st.session_state.elasticsearch_data_ = elasticsearch_data
 
 def upload_files():
     if os.path.isfile("data.jsonl"):
@@ -143,25 +164,30 @@ def delete_files():
 def search():
     search_term = st.text_input(label="Enter Search Term")
     if st.button(label="Submit", key = 0):
-        curr_files = list_curr_files()
-        try:
-            output = openai.Engine("ada").search(
-                                        search_model="ada", 
-                                        query=search_term, 
-                                        max_rerank=200,
-                                        file=curr_files[0]
-                                        )
-            st.markdown("""---""")
-            st.title("Results")
-            for data in output["data"]:
-                display_search(search_term, data["text"])
-                #st.caption(data["text"])
-        except:
-            st.error("No similar documents were found in file, try another search term...")
+        st.markdown("""---""")
+        st.subheader("Search Results")
+        res = st.session_state.es_.search(index="my-index", body={'query':{'match':{'text':search_term}}}, size=len(st.session_state.elasticsearch_data_))
+        for count,hit in enumerate(res['hits']['hits']):
+            display_search(search_term, hit["_source"]["text"], count)
     return None
 
 def qna():
-    st.info("Under Construction...")
+    st.info("Under Construction")
+    # question = st.text_input(label="Enter Query")
+    # if st.button(label="Submit", key = 1):
+    #     curr_files = list_curr_files()
+    #     answer = openai.Answer.create(
+    #                         search_model="davinci", 
+    #                         model="davinci", 
+    #                         question=question, 
+    #                         file=curr_files[0], 
+    #                         examples_context=st.session_state.insight_[0]["summary"], 
+    #                         examples=[["What is human life expectancy in the United States?", "78 years."]],
+    #                         max_tokens=50,
+    #                         stop=["\n", "<|endoftext|>"],
+    #                         temperature=0.1
+    #                     )
+    #     st.caption(answer["answers"][0])
 
 def prepare_workspace(transcript):
     if not st.session_state.data_prep_:
@@ -169,7 +195,7 @@ def prepare_workspace(transcript):
         delete_files()
         upload_files()
         curr_files = list_curr_files()
-        with st.spinner("Processing Files"):
+        with st.spinner("Processing OpenAI Files"):
             while not st.session_state.upload_:
                 try:
                     output = openai.Engine("ada").search(
@@ -182,6 +208,14 @@ def prepare_workspace(transcript):
                 except:
                     print("Processing")
                 sleep(10)
+
+        aliases = st.session_state.es_.indices.get_alias("*")
+        if 'my-index' in aliases.keys():
+            st.session_state.es_.indices.delete(index='my-index', ignore=[400, 404])
+        with st.spinner("Processing ElasticSearch Files..."):
+            for a_data in st.session_state.elasticsearch_data_:
+                st.session_state.es_.index(index='my-index', body=a_data)
+            sleep(5)        
         st.session_state.data_prep_ = True
 
 if __name__ == "__main__":
