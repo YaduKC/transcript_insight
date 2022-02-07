@@ -52,6 +52,7 @@ def summary(chunk):
     insight = response.choices[0].get("text")
     insight = insight.replace("\"", "")
     return insight
+    return "Test"
 
 def local_css():
     with open("style.css") as f:
@@ -93,49 +94,69 @@ def display_insight(data):
     st.markdown("""---""")
 
 
-
-def insight_generate(transcript):
-    if not st.session_state.insight_:
+def create_tiles(transcript):
+    if not st.session_state.tiles_:
         tt = nltk.tokenize.TextTilingTokenizer(w=80,k=5,smoothing_width=3, smoothing_rounds=5)
         tiles = tt.tokenize(transcript)
+        st.session_state.tiles_ = tiles
 
-        for chunk in tiles:
-            timestamps = re.findall(r"\[\d\d\:\d\d:\d\d\]", chunk)
-            if len(timestamps) >= 2:
-                timestamps = timestamps[0] + "-" + timestamps[-1]
-            elif len(timestamps) == 1:
-                timestamps = timestamps[0] + "-" + "[-:-:-]"
-            else:
-                timestamps = "[-:-:-]-[-:-:-]"
-            chunk = re.sub(r"\[\d\d\:\d\d:\d\d\]", "", chunk, flags=re.IGNORECASE)
-            insight = summary(chunk)
-            chunk_dict = {"transcript":chunk,
-                        "summary":insight,
-                        "timestamp":timestamps}
-            st.session_state.insight_.append(chunk_dict)
-    display_insight(st.session_state.insight_)
+
+
+def insight_generate(transcript):
+    if st.button(label="Select"):
+        st.markdown("""---""")
+        if not st.session_state.insight_:
+            if not st.session_state.tiles_:
+                create_tiles(transcript)
+            for chunk in st.session_state.tiles_:
+                timestamps = re.findall(r"\[\d\d\:\d\d:\d\d\]", chunk)
+                if len(timestamps) >= 2:
+                    timestamps = timestamps[0] + "-" + timestamps[-1]
+                elif len(timestamps) == 1:
+                    timestamps = timestamps[0] + "-" + "[-:-:-]"
+                else:
+                    timestamps = "[-:-:-]-[-:-:-]"
+                chunk = re.sub(r"\[\d\d\:\d\d:\d\d\]", "", chunk, flags=re.IGNORECASE)
+                insight = summary(chunk)
+                chunk_dict = {"transcript":chunk,
+                            "summary":insight,
+                            "timestamp":timestamps}
+                st.session_state.insight_.append(chunk_dict)
+        display_insight(st.session_state.insight_)
+
 
 def jsonl_converter(transcript):
     with st.spinner("Parsing Transcript..."):
         elasticsearch_data = []
-        if os.path.isfile("data.jsonl"):
-            os.remove("data.jsonl")
         transcript_list = transcript.split("\n")
-        file = open("data.jsonl", "w")
         for i in transcript_list:
             if i != "" and i[0:3] != "INT":
                 i = i.strip()
                 i = i.replace("\"", "")
                 i = "{\"text\":" +  " \"" + i + "\"}"
+                
                 elasticsearch_data.append(i)
-                file.write(i + "\n")
-        file.close()
         if not st.session_state.elasticsearch_data_:
             st.session_state.elasticsearch_data_ = elasticsearch_data
+        
+        if os.path.isfile("data.jsonl"):
+            os.remove("data.jsonl")
+        file = open("data.jsonl", "w")
+        if not st.session_state.tiles_:
+            create_tiles(transcript)
+        for tiles in st.session_state.tiles_:
+            tiles = tiles.replace("\n","")
+            tiles = tiles.replace("\"","")
+            tiles = "{\"text\":" +  " \"" + tiles + "\"}"
+            file.write(tiles + "\n")
+        file.close()
+
+
+        
 
 def upload_files():
     if os.path.isfile("data.jsonl"):
-        with st.spinner("Uploading Files..."):
+        with st.spinner("Uploading Files To OpenAI Cloud..."):
             openai.File.create(file=open("data.jsonl"), purpose="search")
     else:
         st.error("Transcript JSONL File Not Found!!")
@@ -168,25 +189,38 @@ def search():
         res = st.session_state.es_.search(index="my-index", body={'query':{'match':{'text':search_term}}}, size=len(st.session_state.elasticsearch_data_))
         for count,hit in enumerate(res['hits']['hits']):
             display_search(search_term, hit["_source"]["text"], count)
+        st.markdown("""---""")
     return None
 
 def qna():
-    st.info("Under Construction")
-    # question = st.text_input(label="Enter Query")
-    # if st.button(label="Submit", key = 1):
-    #     curr_files = list_curr_files()
-    #     answer = openai.Answer.create(
-    #                         search_model="davinci", 
-    #                         model="davinci", 
-    #                         question=question, 
-    #                         file=curr_files[0], 
-    #                         examples_context=st.session_state.insight_[0]["summary"], 
-    #                         examples=[["What is human life expectancy in the United States?", "78 years."]],
-    #                         max_tokens=50,
-    #                         stop=["\n", "<|endoftext|>"],
-    #                         temperature=0.1
-    #                     )
-    #     st.caption(answer["answers"][0])
+    #st.info("Under Construction")
+    question = st.text_input(label="Enter Query")
+    if st.button(label="Submit", key = 1):
+        with st.spinner("Processing Answer..."):
+            curr_files = list_curr_files()
+            answer = openai.Answer.create(
+                                search_model="davinci", 
+                                model="davinci", 
+                                question=question, 
+                                file=curr_files[0], 
+                                examples_context=st.session_state.raw_transcript_[0:2047], 
+                                examples=[["What is DoubleVerify", "DoubleVerify is a digital media measurement and verification company."]],
+                                max_tokens=64,
+                                temperature=0.5,
+                                stop=["\n", "<|endoftext|>"],
+                            )
+            
+            st.markdown("""---""")
+            st.subheader("Result")
+            for i in answer["answers"]:
+                st.info(i)
+            st.markdown("""---""")
+
+def map(value, leftMin, leftMax, rightMin, rightMax):
+    leftSpan = leftMax - leftMin
+    rightSpan = rightMax - rightMin
+    valueScaled = float(value - leftMin) / float(leftSpan)
+    return int(rightMin + (valueScaled * rightSpan))
 
 def prepare_workspace(transcript):
     if not st.session_state.data_prep_:
@@ -194,7 +228,7 @@ def prepare_workspace(transcript):
         delete_files()
         upload_files()
         curr_files = list_curr_files()
-        with st.spinner("Processing OpenAI Files"):
+        with st.spinner("Processing OpenAI Files..."):
             while not st.session_state.upload_:
                 try:
                     output = openai.Engine("ada").search(
@@ -208,32 +242,41 @@ def prepare_workspace(transcript):
                     print("Processing")
                 sleep(10)
 
-        aliases = st.session_state.es_.indices.get_alias("*")
-        if 'my-index' in aliases.keys():
-            st.session_state.es_.indices.delete(index='my-index', ignore=[400, 404])
-        with st.spinner("Processing ElasticSearch Files..."):
-            for a_data in st.session_state.elasticsearch_data_:
+        aliases = st.session_state.es_.indices.get_alias("*").keys()
+        for keys in aliases:
+            st.session_state.es_.indices.delete(index=keys, ignore=[400, 404])
+        upload_container = st.empty()
+        with upload_container.container():
+            st.info("Uploading Files To ElasticCloud...")
+            upload_bar = st.progress(0)
+            for index, a_data in enumerate(st.session_state.elasticsearch_data_):
+                percent_complete = map(index, 0, len(st.session_state.elasticsearch_data_), 0, 100) + 1
+                if percent_complete <= 100:
+                    upload_bar.progress(percent_complete)
                 st.session_state.es_.index(index='my-index', body=a_data)
-            sleep(5)        
+            sleep(5)
+        upload_container.empty()  
         st.session_state.data_prep_ = True
 
 if __name__ == "__main__":
     st.set_page_config(layout="wide")
     st.title("Insight Demo")
     st.markdown("""---""")
-    st.session_state.raw_transcript_ = st.text_area(label="Enter Transcript Here", height=300)
+    st.session_state.raw_transcript_ = st.text_area(label="Enter Transcript Here", height=500)
     submit = st.button(label="Submit")
     if st.session_state.submit_ == False:
         st.session_state.submit_ = submit
     st.markdown("""---""")
-    if st.session_state.submit_:
-        insight_generate(st.session_state.raw_transcript_)
-        st.title("Tools")
-        st.session_state.curr_tool_ = st.selectbox(label="Select Tool", options=("Search", "Question Answering"))
-        if st.session_state.curr_tool_ == "Search":
-            prepare_workspace(st.session_state.raw_transcript_)
-            search()
-        if st.session_state.curr_tool_ == "Question Answering":
-            prepare_workspace(st.session_state.raw_transcript_)
-            qna()
-        st.markdown("""---""")
+    if st.session_state.submit_ and st.session_state.raw_transcript_ != "":  
+            st.title("Tools")
+            st.session_state.curr_tool_ = st.selectbox(label="Select Tool", options=("Insights", "Search", "Question Answering"))
+            if st.session_state.curr_tool_ == "Insights":
+                insight_generate(st.session_state.raw_transcript_)
+            if st.session_state.curr_tool_ == "Search":
+                prepare_workspace(st.session_state.raw_transcript_)
+                search()
+            if st.session_state.curr_tool_ == "Question Answering":
+                prepare_workspace(st.session_state.raw_transcript_)
+                qna()
+    elif st.session_state.submit_ and st.session_state.raw_transcript_ == "":
+        st.error("Paste Transcript...")
