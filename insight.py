@@ -108,24 +108,25 @@ def create_tiles(transcript):
 def insight_generate(transcript):
     if st.button(label="Select"):
         st.markdown("""---""")
-        if not st.session_state.insight_:
-            if not st.session_state.tiles_:
-                create_tiles(transcript)
-            for chunk in st.session_state.tiles_:
-                timestamps = re.findall(r"\[\d\d\:\d\d:\d\d\]", chunk)
-                if len(timestamps) >= 2:
-                    timestamps = timestamps[0] + "-" + timestamps[-1]
-                elif len(timestamps) == 1:
-                    timestamps = timestamps[0] + "-" + "[-:-:-]"
-                else:
-                    timestamps = "[-:-:-]-[-:-:-]"
-                chunk = re.sub(r"\[\d\d\:\d\d:\d\d\]", "", chunk, flags=re.IGNORECASE)
-                insight = summary(chunk)
-                chunk_dict = {"transcript":chunk,
-                            "summary":insight,
-                            "timestamp":timestamps}
-                st.session_state.insight_.append(chunk_dict)
-        display_insight(st.session_state.insight_)
+        with st.spinner("Generating Insights..."):
+            if not st.session_state.insight_:
+                if not st.session_state.tiles_:
+                    create_tiles(transcript)
+                for chunk in st.session_state.tiles_:
+                    timestamps = re.findall(r"\[\d\d\:\d\d:\d\d\]", chunk)
+                    if len(timestamps) >= 2:
+                        timestamps = timestamps[0] + "-" + timestamps[-1]
+                    elif len(timestamps) == 1:
+                        timestamps = timestamps[0] + "-" + "[-:-:-]"
+                    else:
+                        timestamps = "[-:-:-]-[-:-:-]"
+                    chunk = re.sub(r"\[\d\d\:\d\d:\d\d\]", "", chunk, flags=re.IGNORECASE)
+                    insight = summary(chunk)
+                    chunk_dict = {"transcript":chunk,
+                                "summary":insight,
+                                "timestamp":timestamps}
+                    st.session_state.insight_.append(chunk_dict)
+            display_insight(st.session_state.insight_)
 
 
 def jsonl_converter(transcript):
