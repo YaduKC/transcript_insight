@@ -32,6 +32,9 @@ if 'upload_' not in st.session_state:
 if 'elasticsearch_data_' not in st.session_state:
     st.session_state.elasticsearch_data_ = []
 
+if 'tiles_' not in st.session_state:
+    st.session_state.tiles_ = []
+
 if 'es_' not in st.session_state:
     st.session_state.es_ = Elasticsearch(
                     ['https://insight-08476f.es.us-east4.gcp.elastic-cloud.com'],
