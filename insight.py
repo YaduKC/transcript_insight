@@ -271,16 +271,15 @@ if __name__ == "__main__":
     if st.session_state.submit_ == False:
         st.session_state.submit_ = submit
     st.markdown("""---""")
-    if st.session_state.submit_ and st.session_state.raw_transcript_ != "":  
-            st.title("Tools")
-            st.session_state.curr_tool_ = st.selectbox(label="Select Tool", options=("Insights", "Search", "Question Answering"))
-            if st.session_state.curr_tool_ == "Insights":
-                insight_generate(st.session_state.raw_transcript_)
-            if st.session_state.curr_tool_ == "Search":
-                prepare_workspace(st.session_state.raw_transcript_)
-                search()
-            if st.session_state.curr_tool_ == "Question Answering":
-                prepare_workspace(st.session_state.raw_transcript_)
-                qna()
+    if st.session_state.submit_ and st.session_state.raw_transcript_ != "":
+        prepare_workspace(st.session_state.raw_transcript_)
+        st.title("Tools")
+        st.session_state.curr_tool_ = st.selectbox(label="Select Tool", options=("Insights", "Search", "Question Answering"))
+        if st.session_state.curr_tool_ == "Insights":
+            insight_generate(st.session_state.raw_transcript_)
+        if st.session_state.curr_tool_ == "Search":
+            search()
+        if st.session_state.curr_tool_ == "Question Answering":
+            qna()
     elif st.session_state.submit_ and st.session_state.raw_transcript_ == "":
         st.error("Paste Transcript...")
