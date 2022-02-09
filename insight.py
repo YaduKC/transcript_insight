@@ -42,12 +42,12 @@ if 'es_' not in st.session_state:
                     scheme="https", port=9243,)
 
 def summary(chunk):
-    start_sequence = "The main topic of conversation in 6 words is:"
+    start_sequence = "The main topic of conversation in one sentence is:"
     response = openai.Completion.create(
         engine="text-davinci-001",
         prompt="\""+chunk+"\"" +"\n"+start_sequence,
         temperature=0.7,
-        max_tokens=64,
+        max_tokens=100,
         top_p=1,
         frequency_penalty=0,
         presence_penalty=0
