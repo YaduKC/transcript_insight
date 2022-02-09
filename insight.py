@@ -99,7 +99,7 @@ def display_insight(data):
 
 def create_tiles(transcript):
     if not st.session_state.tiles_:
-        tt = nltk.tokenize.TextTilingTokenizer(w=80,k=5,smoothing_width=3, smoothing_rounds=5)
+        tt = nltk.tokenize.TextTilingTokenizer(w=30,k=5,smoothing_width=3, smoothing_rounds=5)
         tiles = tt.tokenize(transcript)
         st.session_state.tiles_ = tiles
 
